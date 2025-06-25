@@ -1,0 +1,477 @@
+
+<div id="tax-calculator-embed-container" style="max-width: 700px; margin: 20px auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); overflow-y: auto; max-height: 90vh; /* Adjust max-height as needed */">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- ADP Fonts CSS -->
+  <link href="https://synerg.adp.com/synerg-web-components/circular-fonts/fonts.css" type="text/css" rel="stylesheet" />
+
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'brand-navy': '#121C4E',
+            'brand-navy-hover': '#324FA5',
+            'brand-background': '#FFFFFF',
+            'section-green': '#f6faf6',
+            'section-beige': '#f9f5ef',
+            'section-lavender': '#f8f7fb',
+            'neutral-500': '#6B7280',
+            'neutral-600': '#4B5563',
+            'info-600': '#4F46E5',
+            'brand-skyblue': '#87CEEB', 
+            'brand-skyblue-hover': '#76BEDA',
+            'brand-indigo': '#4F46E5',
+            'brand-indigo-hover': '#4338CA',
+          },
+          fontFamily: {
+             taub: ['Taub', 'ADP-Taub', 'Circular', 'sans-serif'],
+             circular: ['Circular', 'ADP-Circular', 'sans-serif']
+          },
+          spacing: {
+            '17px': '17px',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Global Styles (adapted for embed) -->
+  <style>
+    #tax-calculator-embed-container {
+      font-family: 'Circular', sans-serif;
+      color: #121C4E; /* brand-navy */
+      background-color: #FFFFFF; /* brand-background */
+    }
+    #tax-calculator-embed-container ::-webkit-scrollbar {
+        width: 8px;
+    }
+    #tax-calculator-embed-container ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    #tax-calculator-embed-container ::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 10px;
+    }
+    #tax-calculator-embed-container ::-webkit-scrollbar-thumb:hover {
+        background: #aaa;
+    }
+    #tax-calculator-embed-container input::placeholder {
+      color: #6B7280; /* neutral-500 */
+    }
+  </style>
+
+  <!-- React mounting point -->
+  <div id="react-root-tax-calculator"></div>
+
+  <!-- React and Babel CDN (UMD versions for Babel compatibility) -->
+  <script src="https://unpkg.com/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.0/babel.min.js"></script>
+
+  <!-- React Component Code -->
+  <script type="text/babel">
+    // --- START: Types and Constants ---
+    const FilingStatus = {
+      SINGLE: 'Single',
+      MARRIED_FILING_JOINTLY: 'Married Filing Jointly',
+      MARRIED_FILING_SEPARATELY: 'Married Filing Separately',
+      HEAD_OF_HOUSEHOLD: 'Head of Household',
+      QUALIFYING_WIDOW: 'Qualifying Widow(er)',
+    };
+
+    const FILING_STATUS_OPTIONS = [
+      { value: FilingStatus.SINGLE, label: 'Single' },
+      { value: FilingStatus.MARRIED_FILING_JOINTLY, label: 'Married Filing Jointly' },
+      { value: FilingStatus.MARRIED_FILING_SEPARATELY, label: 'Married Filing Separately' },
+      { value: FilingStatus.HEAD_OF_HOUSEHOLD, label: 'Head of Household' },
+      { value: FilingStatus.QUALIFYING_WIDOW, label: 'Qualifying Widow(er)' },
+    ];
+    // --- END: Types and Constants ---
+
+    // --- START: Icon Components ---
+    const ChevronDownIcon = ({ className }) => {
+      return (
+        <svg 
+          className={className || "w-5 h-5"} 
+          xmlns="http://www.w3.org/2000/svg" 
+          viewBox="0 0 20 20" 
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+        </svg>
+      );
+    };
+    // --- END: Icon Components ---
+
+    // --- START: Button Component ---
+    const Button = ({ children, variant = 'primary', customClasses = '', ...props }) => {
+      let baseClasses = "items-center py-3 px-6 font-semibold text-sm rounded-md border-solid border-2 select-none transition-colors duration-150 ease-in-out relative";
+      
+      if (variant === 'primary') {
+        baseClasses += " border-brand-indigo bg-brand-indigo text-white hover:bg-brand-indigo-hover";
+      } else if (variant === 'secondary') {
+        baseClasses += " border-brand-navy bg-white text-brand-navy hover:bg-gray-100";
+      }
+
+      return (
+        <button
+          type="button" // Default to button, form submit will override
+          className={`${baseClasses} ${customClasses}`}
+          {...props}
+        >
+          <div className="w-full flex justify-center">
+            <div className="whitespace-nowrap tracking-wider">{children}</div>
+          </div>
+        </button>
+      );
+    };
+    // --- END: Button Component ---
+
+    // --- START: SelectDropdown Component ---
+    const SelectDropdown = ({ id, label, options, value, onChange, required }) => {
+      return (
+        <div className="w-full">
+          <label htmlFor={id} className="text-gray-700 py-2 font-bold font-taub block text-left text-sm">
+            {label}
+          </label>
+          <div className="relative">
+            <select
+              id={id}
+              name={id}
+              value={value}
+              onChange={onChange}
+              required={required}
+              className="appearance-none border-neutral-500 placeholder:text-neutral-500 h-[40px] bg-white border-2 box-border focus:border-info-600 focus:border-2 block w-full focus:ring-transparent rounded-lg pl-3 pr-10 text-sm"
+            >
+              {options.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-700">
+              <ChevronDownIcon className="w-4 h-4" />
+            </div>
+          </div>
+        </div>
+      );
+    };
+    // --- END: SelectDropdown Component ---
+    
+    // --- START: HeroSection Component ---
+    const HeroSection = () => {
+      return (
+        <section className="pt-6 pb-4 mb-4 px-6 sm:text-center text-left w-full max-w-4xl">
+          <
+          </h1>
+          <p className="font-circular text-base md:text-[22px] text-neutral-600 leading-relaxed">
+          </p>
+        </section>
+      );
+    };
+    // --- END: HeroSection Component ---
+
+    // --- START: CalculatorForm Component ---
+    const CalculatorForm = ({ onCalculate, isLoading }) => {
+      const [freelanceIncome, setFreelanceIncome] = React.useState('');
+      const [hasW2Income, setHasW2Income] = React.useState(false);
+      const [annualW2IncomeText, setAnnualW2IncomeText] = React.useState('');
+      const [filingStatus, setFilingStatus] = React.useState(FilingStatus.SINGLE);
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        const freelanceIncomeValue = parseFloat(freelanceIncome.replace(/[^0-9.-]+/g,""));
+        let w2IncomeValue = 0;
+        if (hasW2Income) {
+          w2IncomeValue = parseFloat(annualW2IncomeText.replace(/[^0-9.-]+/g,""));
+          if (isNaN(w2IncomeValue)) w2IncomeValue = 0;
+        }
+
+        if (!isNaN(freelanceIncomeValue) && freelanceIncomeValue >= 0) { // Allow $0 income
+          onCalculate(freelanceIncomeValue, hasW2Income, w2IncomeValue, filingStatus);
+        } else {
+          alert("Please enter a valid freelance income.");
+        }
+      };
+
+      const handleIncomeChange = (e) => {
+        const value = e.target.value;
+        if (/^[$\d.,]*$/.test(value)) {
+           setFreelanceIncome(value);
+        }
+      };
+
+      const handleW2IncomeChange = (e) => {
+        const value = e.target.value;
+        if (/^[$\d.,]*$/.test(value)) {
+           setAnnualW2IncomeText(value);
+        }
+      };
+
+      return (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="w-full">
+            <label htmlFor="freelance-income" className="text-gray-700 py-2 font-bold font-taub block text-left text-sm">
+              Estimated Annual Freelance Income
+            </label>
+            <input
+              id="freelance-income"
+              aria-label="freelance-income"
+              aria-invalid={isNaN(parseFloat(freelanceIncome.replace(/[^0-9.-]+/g,""))) && freelanceIncome !== ''}
+              aria-required="true"
+              inputMode="decimal"
+              placeholder="$ 0"
+              required
+              className="border-neutral-500 placeholder:text-neutral-500 h-[40px] bg-white mr-1 border-2 box-border focus:border-info-600 focus:border-2 block w-full focus:ring-transparent rounded-lg text-sm px-3"
+              type="text"
+              value={freelanceIncome}
+              onChange={handleIncomeChange}
+              name="freelance-income"
+            />
+          </div>
+
+          <div className="flex flex-row items-center">
+            <input
+              id="checkbox"
+              className="bg-white border-gray-200 border-2 w-5 h-5 rounded-md mr-2 cursor-pointer focus:ring-2 focus:ring-blue-500"
+              type="checkbox"
+              name="checkbox"
+              checked={hasW2Income}
+              onChange={(e) => setHasW2Income(e.target.checked)}
+            />
+            <label htmlFor="checkbox" className="text-sm text-gray-700 cursor-pointer font-circular">I also have W-2 income</label>
+          </div>
+
+          {hasW2Income && (
+            <div className="w-full">
+              <label htmlFor="annual-w2-income" className="text-gray-700 py-2 font-bold font-taub block text-left text-sm">
+                Annual W-2 Income
+              </label>
+              <input
+                id="annual-w2-income"
+                aria-label="annual-w2-income"
+                inputMode="decimal"
+                placeholder="$ 0"
+                className="border-neutral-500 placeholder:text-neutral-500 h-[40px] bg-white mr-1 border-2 box-border focus:border-info-600 focus:border-2 block w-full focus:ring-transparent rounded-lg text-sm px-3"
+                type="text"
+                value={annualW2IncomeText}
+                onChange={handleW2IncomeChange}
+                name="annual-w2-income"
+              />
+            </div>
+          )}
+
+          <SelectDropdown
+            id="filing-status"
+            label="Filing Status"
+            options={FILING_STATUS_OPTIONS}
+            value={filingStatus}
+            onChange={(e) => setFilingStatus(e.target.value)}
+            required
+          />
+          
+          <div className="mb-1 mt-3 flex justify-center w-full">
+            <Button type="submit" customClasses="w-[140px] font-taub" disabled={isLoading}>
+              {isLoading ? 'Calculating...' : 'Calculate'}
+            </Button>
+          </div>
+        </form>
+      );
+    };
+    // --- END: CalculatorForm Component ---
+
+    // --- START: CalculatorResults Component ---
+    const CalculatorResults = ({ results }) => {
+      const formatCurrency = (amount) => {
+        return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+      };
+
+      return (
+        <div className="mt-8 p-6 bg-gray-50 rounded-lg shadow">
+          <h2 className="text-2xl font-taub font-semibold text-brand-navy mb-6 text-center">Estimated Tax Breakdown</h2>
+          
+          <div className="space-y-4">
+            <div className="flex justify-between items-center py-3 border-b border-gray-200">
+              <p className="text-md font-circular text-gray-700">Federal Income Tax:</p>
+              <p className="text-lg font-taub font-semibold text-brand-navy">{formatCurrency(results.federalTax)}</p>
+            </div>
+            <div className="flex justify-between items-center py-3 border-b border-gray-200">
+              <p className="text-md font-circular text-gray-700">Self-Employment Tax:</p>
+              <p className="text-lg font-taub font-semibold text-brand-navy">{formatCurrency(results.selfEmploymentTax)}</p>
+            </div>
+            <div className="flex justify-between items-center py-3 text-brand-navy bg-indigo-50 px-4 rounded-md">
+              <p className="text-lg font-circular font-bold">Total Estimated Annual Tax:</p>
+              <p className="text-xl font-taub font-bold">{formatCurrency(results.totalEstimatedTax)}</p>
+            </div>
+            <div className="flex justify-between items-center py-3 mt-2 text-green-700 bg-green-50 px-4 rounded-md">
+              <p className="text-md font-circular font-semibold">Estimated Quarterly Payment:</p>
+              <p className="text-lg font-taub font-semibold">{formatCurrency(results.quarterlyPayment)}</p>
+            </div>
+          </div>
+          <p className="mt-6 text-xs font-circular text-neutral-600 text-center">
+            These are estimates. State and local taxes are not included. Consult a tax professional for precise figures.
+          </p>
+        </div>
+      );
+    };
+    // --- END: CalculatorResults Component ---
+
+    // --- START: CalculatorContainer Component ---
+    const CalculatorContainer = ({ onCalculationStart }) => {
+      const [results, setResults] = React.useState(null);
+      const [isLoading, setIsLoading] = React.useState(false);
+
+      const handleCalculate = React.useCallback((
+        freelanceIncomeInput,
+        hasW2Income,
+        annualW2IncomeInput,
+        currentFilingStatus
+      ) => {
+        setIsLoading(true);
+        setResults(null);
+        if (onCalculationStart) onCalculationStart(); // Call if provided
+
+        const W2_INCOME = hasW2Income ? annualW2IncomeInput : 0;
+        const FREELANCE_INCOME = freelanceIncomeInput;
+
+        setTimeout(() => {
+          let STANDARD_DEDUCTION;
+          let BRACKETS; 
+
+          if (currentFilingStatus === FilingStatus.SINGLE) {
+            STANDARD_DEDUCTION = 14600;
+            BRACKETS = [
+              [0, 0.10, 11600], [11600, 0.12, 47150], [47150, 0.22, 100525],
+              [100525, 0.24, 191950], [191950, 0.32, 243725],
+              [243725, 0.35, 609350], [609350, 0.37, Infinity],
+            ];
+          } else if (currentFilingStatus === FilingStatus.MARRIED_FILING_JOINTLY || currentFilingStatus === FilingStatus.QUALIFYING_WIDOW) {
+            STANDARD_DEDUCTION = 29200;
+            BRACKETS = [
+              [0, 0.10, 23200], [23200, 0.12, 94300], [94300, 0.22, 201050],
+              [201050, 0.24, 383900], [383900, 0.32, 487450],
+              [487450, 0.35, 731200], [731200, 0.37, Infinity],
+            ];
+          } else if (currentFilingStatus === FilingStatus.MARRIED_FILING_SEPARATELY) {
+            STANDARD_DEDUCTION = 14600; 
+            BRACKETS = [
+              [0, 0.10, 11600], [11600, 0.12, 47150], [47150, 0.22, 100525],
+              [100525, 0.24, 191950], [191950, 0.32, 243725],
+              [243725, 0.35, 609350], [609350, 0.37, Infinity],
+            ];
+          } else if (currentFilingStatus === FilingStatus.HEAD_OF_HOUSEHOLD) {
+            STANDARD_DEDUCTION = 21900; 
+            BRACKETS = [
+              [0, 0.10, 11600], [11600, 0.12, 47150], [47150, 0.22, 100525],
+              [100525, 0.24, 191950], [191950, 0.32, 243725],
+              [243725, 0.35, 609350], [609350, 0.37, Infinity],
+            ];
+          } else {
+            STANDARD_DEDUCTION = 14600;
+            BRACKETS = [
+              [0, 0.10, 11600], [11600, 0.12, 47150], [47150, 0.22, 100525],
+              [100525, 0.24, 191950], [191950, 0.32, 243725],
+              [243725, 0.35, 609350], [609350, 0.37, Infinity],
+            ];
+          }
+
+          const SE_TAXABLE_EARNINGS = FREELANCE_INCOME * 0.9235;
+          const SE_TAX = SE_TAXABLE_EARNINGS * 0.153;
+          const HALF_SE_TAX = SE_TAX / 2;
+          const AGI = FREELANCE_INCOME + W2_INCOME - HALF_SE_TAX;
+          const FED_TAXABLE_INCOME = Math.max(0, AGI - STANDARD_DEDUCTION);
+
+          let taxableForFederal = FED_TAXABLE_INCOME;
+          let federal_tax = 0;
+          for (const [start, rate, end] of BRACKETS) {
+            if (taxableForFederal > start) {
+              const taxableAtThisRate = Math.min(taxableForFederal, end) - start;
+              federal_tax += taxableAtThisRate * rate;
+            }
+            if (taxableForFederal <= end) {
+              break;
+            }
+          }
+          
+          const TOTAL_TAX = SE_TAX + federal_tax;
+          const QUARTERLY_PAYMENT = TOTAL_TAX / 4;
+
+          setResults({
+            federalTax: parseFloat(federal_tax.toFixed(2)),
+            selfEmploymentTax: parseFloat(SE_TAX.toFixed(2)),
+            totalEstimatedTax: parseFloat(TOTAL_TAX.toFixed(2)),
+            quarterlyPayment: parseFloat(QUARTERLY_PAYMENT.toFixed(2)),
+          });
+          setIsLoading(false);
+        }, 500); 
+      }, [onCalculationStart]);
+
+      return (
+        <div className="pb-5 font-circular">
+          <div className="sm:p-6 sm:bg-white sm:rounded-xl w-full mb-8">
+            <CalculatorForm onCalculate={handleCalculate} isLoading={isLoading} />
+            {isLoading && (
+              <div className="mt-6 flex justify-center items-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-navy"></div>
+                <p className="ml-3 font-taub text-brand-navy">Calculating...</p>
+              </div>
+            )}
+            {results && !isLoading && <CalculatorResults results={results} />}
+          </div>
+        </div>
+      );
+    };
+    // --- END: CalculatorContainer Component ---
+
+    // --- START: Disclaimer Component ---
+    const Disclaimer = () => {
+      return (
+        <p className="text-sm sm:pb-8 pb-4 text-neutral-600 font-circular"> {/* Adjusted bottom padding for embed */}
+          <strong>DISCLAIMER:</strong> This federal tax calculator is provided for informational purposes only and does not guarantee accuracy. It should not be considered tax, legal, or financial advice. For specific guidance regarding your situation, please consult a qualified tax professional.
+        </p>
+      );
+    };
+    // --- END: Disclaimer Component ---
+
+    // --- START: App Component ---
+    const App = () => {
+      // Removed isScrollable state and related useEffect for global scroll control
+      // The onCalculationStart prop is kept for potential future use within the embed,
+      // but it no longer controls global page scrolling.
+      const handleCalculationStart = () => {
+        // Placeholder if any action is needed within the embed on calculation start
+        // For example, could scroll the embed's internal view to the results.
+        const resultsElement = document.getElementById('react-root-tax-calculator')?.querySelector('.mt-8.p-6.bg-gray-50');
+        if (resultsElement) {
+          resultsElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      };
+
+      return (
+        <div className="flex flex-col"> {/* Removed min-h-screen for embed context */}
+          <main className="pt-0 flex flex-col items-center w-full flex-grow">
+            <HeroSection />
+            <section className="px-2 sm:px-6 w-full"> {/* Slightly reduced horizontal padding for embed */}
+              <div className="mx-auto max-w-2xl">
+                <CalculatorContainer onCalculationStart={handleCalculationStart} />
+                <Disclaimer />
+              </div>
+            </section>
+          </main>
+        </div>
+      );
+    };
+    // --- END: App Component ---
+
+    // --- React Mounting ---
+    const rootElement = document.getElementById('react-root-tax-calculator');
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(<App />);
+
+  </script>
+</div>
